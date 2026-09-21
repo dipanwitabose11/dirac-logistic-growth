@@ -1,122 +1,177 @@
-# Logistic growth: generator recovery under heavy censoring
+# Generator estimation from endpoint-only data via a Dirac frame
 
-This is the simplest, fully controlled test case in my work on learning the
-dynamics of continuous-time Markov chains (CTMCs) from censored data. By censored I
-mean the hard setting I study throughout my research: for each sampled path I only
-observe the start X(0) and the end X(T), never the trajectory in between. The point
-of this repository is to take that hard setting and put it somewhere I can check my
-own answers, so the model here is a one dimensional logistic birth and death process
-whose true generator Q is known in closed form.
+Reconstructing the generator of a finite-state continuous-time Markov chain when
+the data are severely censored: for every sampled path only the start `X(0)` and
+the end `X(T)` are observed, never the trajectory in between.
 
-If the method cannot recover a generator I built myself, it has no business being
-trusted on real data. So I start here.
+Endpoint-only likelihoods are badly behaved. On a common horizon, if every
+observed start state has the same empirical endpoint distribution, the likelihood
+has a finite supremum that is approached only as the rates diverge, so no
+maximiser exists. The fix here is a regularizer built from the geometry of the
+graph rather than from the matrix entries, and the estimator minimises that
+regularizer over the generators compatible with the data at a prescribed
+likelihood level.
 
-## The model
+The model is a logistic birth and death process whose true generator is known in
+closed form, so every claim below can be checked against ground truth.
 
-I work on an augmented state space that carries both the population levels and the
-links between them:
+## The construction
+
+The state space carries both the population levels and the links between them:
 
 ```
 V = {0, 1, ..., K}                        population levels
-E = {e_0, ..., e_{K-1}},  e_i ~ (i, i+1)  edges between adjacent levels
-n = |V| + |E| = 2K + 1                     total dimension
+E = {e_0, ..., e_{K-1}},  e_i ~ (i, i+1)  edge states
+Gamma = V u E,  n = |V| + |E| = 2K + 1
 ```
 
-The logistic dynamics enter through the rates
-
-```
-birth   i  -> e_i      at  lambda_i = a + r*i*(1 - i/K)   for i < K
-death   i  -> e_{i-1}  at  mu_i     = d*i                 for i > 0
-edge    e_i -> i       at  kappa_left
-        e_i -> i+1     at  kappa_right
-```
-
-From endpoint pairs (x, y, t) I estimate the five parameters
-(r, d, a, kappa_left, kappa_right) by maximum likelihood, then rebuild the full
-generator and measure how close it is to the truth.
-
-## Why a Dirac operator
-
-The estimator is geometry aware. I represent generators in a basis built from the
-graph's incidence Dirac structure rather than fitting entries blindly. With the
-signed incidence matrix B, the graph Dirac operator is
+With `B` the signed incidence matrix, the graph Dirac operator is
 
 ```
 D = [ 0    B  ]
     [ B^T  0  ]
 ```
 
-Its orthonormal eigenvectors give a Parseval frame in which any generator supported
-on the graph expands exactly:
+Let `u_1, ..., u_n` be a real orthonormal eigenbasis of `D` and
+`M_mu = diag(u_mu)`. The family
 
 ```
-Q_rec = sum_mu a_mu M_mu  +  sum_{mu != nu} b_{mu,nu} M_nu D M_mu,
-M_mu = diag(u_mu),   a_mu = u_mu^T diag(Q),   b_{mu,nu} = (U^T (Q .* D) U)_{mu,nu}.
+G_{mu,nu} = M_nu D M_mu        together with        M_lambda
 ```
 
-The eigenvalues |lambda_mu| play the role of graph frequencies, so smooth and
-oscillatory parts of the dynamics separate cleanly. There is no Laplacian anywhere
-in this construction.
-
-## What it recovers
-
-Run on synthetic endpoint data (K = 6, N = 2000 observations per time,
-t in {0.5, 1.0}, seed 123):
-
-| Parameter   | True  | Estimate |
-|-------------|-------|----------|
-| r           | 0.900 | 0.764    |
-| d           | 0.250 | 0.266    |
-| a           | 0.100 | 0.122    |
-| kappa_left  | 2.000 | 1.864    |
-| kappa_right | 2.000 | 2.246    |
+is a **Parseval frame** for the space of graph-supported operators. Every
+generator supported on the graph expands exactly, diagonal included:
 
 ```
-Full generator relative error   ||Q_hat - Q_true||_F / ||Q_true||_F = 6.41e-02
-Average log-likelihood (true)   -1.4225
-Average log-likelihood (fit)    -1.4211   (meets the likelihood floor)
-Theorem-style objective         (1/tau)*log||exp(tau*Q_hat) lambda||_TV = -0.2276
+Q         = sum_{mu,nu} c_{mu,nu} G_{mu,nu} + sum_lambda d_lambda M_lambda
+c_{mu,nu} = Tr(M_nu Q M_mu D)
+d_lambda  = Tr(M_lambda Q)
 ```
 
-The pipeline keeps increasing the sample size until the generator relative error
-drops below the target tolerance, which is the behavior I want to see before moving
-to data where the truth is unknown.
+There is no Laplacian anywhere in this construction. The eigenvalues
+`|lambda_mu|` act as graph frequencies, so smooth and oscillatory parts of the
+dynamics separate.
 
-## What is in here
+## The estimator
+
+The regularizer is a weighted `l1` functional of the frame coefficients,
 
 ```
-logistic growith model.ipynb   the full pipeline: graph and Dirac build, data
-                               generation, MLE fit, Dirac reconstruction, figures
-config.json                    run configuration (model size, true theta, optimizer)
-summary.json                   results in machine-readable form
-README.txt                     raw run log
-dataset.csv                    endpoint observations (x, y, t)
+R_Q = a * sum_{mu,nu} |c_{mu,nu}| ||u_mu||_inf ||u_nu||_inf
+      +   sum_lambda  |d_lambda|  ||u_lambda||_inf,     a = ||D||_{1,1} = 2
 ```
+
+It dominates the induced operator norms, `||Q||_{p,p} <= R_Q` for `p` in
+`{1, inf}`, and it dominates a fixed multiple of the Hilbert-Schmidt norm, which
+is what makes the constrained problem coercive. The estimator solves
+
+```
+minimise   R_Q
+subject to Q_{alpha,beta} >= 0  for alpha != beta     (off-diagonal positivity)
+           Q 1 = 0                                    (conservativity)
+           l(Q) >= log p                              (likelihood floor)
+```
+
+The first two constraints are exactly the condition for `exp(tQ)` to be
+stochastic for every `t >= 0`. The absolute values are handled by an exact
+epigraph reformulation, not smoothed. The likelihood level is set from the
+unconstrained maximum by `log p = l_max - chi2_{|S|, 0.95} / 2`; the quantile
+only selects a level and no coverage statement is made anywhere.
+
+The estimator is given no knowledge of the five-parameter family that generated
+the data. It ranges over the full 24-dimensional set of graph-supported
+conservative generators.
+
+## Results
+
+`K = 6`, so `n = 13` states and `|S| = 24` incidence pairs; 200000 endpoint pairs
+per horizon at `t` in `{0.5, 1.0}`; seed 123.
+
+**Frame identities**
+
+| Quantity | Value |
+|---|---|
+| Frame operator minus identity on the support | 2.22e-15 |
+| Multiplier Gram minus identity | 8.88e-16 |
+| Cross terms `<G_{mu,nu}, M_lambda>` | 0 |
+| Reconstruction of the estimate, relative | 9.61e-16 |
+
+**Estimation**
+
+| Quantity | Value |
+|---|---|
+| Maximum log-likelihood | -569631.0561 |
+| Likelihood level `log p` | -569649.2636 |
+| `R_Q` at the reference generator | 21.969216 |
+| `R_Q` at the estimate | 21.548341 |
+| Spread across three starts | 6.94e-12 |
+
+All three starts (maximum likelihood, unit rates, reference generator) return the
+same value, and the estimate lowers `R_Q` below the reference, as it must.
+
+**Accuracy and structure**
+
+| Quantity | Value |
+|---|---|
+| Relative Frobenius error | 1.81e-02 |
+| Relative (1,1) / (inf,inf) error | 2.42e-02 / 2.49e-02 |
+| Max kernel difference at `t = 0.5` / `1.0` | 5.16e-03 / 3.58e-03 |
+| Error off the incidence support | exactly 0 |
+| Minimum off-diagonal entry of the estimate | 0 |
+| Max abs row sum of the estimate | 2.22e-16 |
+| Spectral gap | 0.0382 |
+
+The estimate is a bona fide Markov generator, its support is exactly the graph's,
+and the stability bound for the transition kernel holds on the whole time grid,
+both with `K = ||Q||_{inf,inf}` and with the computable constant `R_Q`.
+
+## Layout
+
+```
+src/dirac_frame/        the package: geometry, frame, likelihood, optimisation
+scripts/run_experiment.py   reproducible entry point; writes results/ and figures/
+notebooks/              the same pipeline in one notebook, with output
+tests/                  fast structural tests of the frame and generator facts
+results/                summary.json, config.json, report.txt, endpoint_counts.csv,
+                        generators.npz
+figures/                the nine figures
+```
+
+`results/endpoint_counts.csv` holds the aggregated counts `(t, start, end, count)`
+rather than 400000 individual pairs, because the counts are the sufficient
+statistic the likelihood uses. The pairs regenerate deterministically from the
+seed.
 
 ## Running it
 
 ```bash
-pip install numpy scipy matplotlib
-jupyter notebook "logistic growith model.ipynb"
+pip install -r requirements.txt
+python scripts/run_experiment.py
 ```
 
-Run all cells to reproduce the parameter recovery, the Dirac reconstruction, and the
-diagnostic figures (transition kernels, total variation growth, the lambda
-evolution, the Dirac coefficients, and the spectrum of Q_hat).
+A few minutes end to end. For a quick look without reproducing the reported
+values:
 
-## Where this fits
+```bash
+python scripts/run_experiment.py --n-per-time 5000 --no-figures
+```
 
-This is one of four repositories that carry the same framework from a fully
-controlled test case to noisy real world data:
+Tests:
 
-- Logistic growth (this repo): clean synthetic validation with known parameters
-- Predator and prey: real algae and rotifer ecology, Doob and Schrodinger bridges, error bounds
-- Rotational vector field: analytic ground truth, recovery to machine precision
-- Yellow cab dynamics: real NYC taxi mobility with no known generator
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+```
 
-The censored-data estimation studied here also underlies a paper I am preparing,
-"Maximum likelihood estimation of Markov processes with censored data: the Ehrenfest
-model and beyond."
+## Reproducibility
+
+Reference environment for the numbers above: Python 3.11.15, numpy 2.4.4,
+scipy 1.17.1, matplotlib 3.10.9.
+
+Substantive quantities (`R_Q`, the errors, the spectral gap, the norms)
+reproduce across environments. Diagnostics reported at the `1e-15` level are at
+machine precision and will move with the BLAS and library versions; treat them as
+bounds rather than as figures.
 
 ## License
 
