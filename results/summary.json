@@ -1,0 +1,83 @@
+{
+  "run": {
+    "seed": 123,
+    "n_states": 13,
+    "incidence_support": 24,
+    "frame_elements": 182,
+    "a_norm_of_D": 2.0,
+    "endpoint_pairs": 400000,
+    "horizons": [
+      0.5,
+      1.0
+    ]
+  },
+  "frame_identities": {
+    "dirac_unimodular_on_support": true,
+    "frame_operator_minus_identity": 2.22e-15
+  },
+  "reference_generator": {
+    "R_Q": 21.96921617592362,
+    "norm_1_1": 6.550000000000001,
+    "norm_inf_inf": 8.0,
+    "kappa_times_HS": 2.051842872053714
+  },
+  "likelihood": {
+    "max_loglik": -569631.0561,
+    "log_p_level": -569649.2636
+  },
+  "estimated_generator": {
+    "R_Q": 21.548340807094064,
+    "R_Q_off_diagonal_part": 12.328777529424325,
+    "R_Q_diagonal_part": 9.21956327766974,
+    "norm_1_1": 6.391362574779043,
+    "norm_inf_inf": 7.960050482467036,
+    "kappa_times_HS": 2.019284084927264,
+    "min_off_diagonal_entry": 0.0,
+    "max_abs_row_sum": 2.220446049250313e-16
+  },
+  "accuracy": {
+    "relative_frobenius_error": 0.018086069492067033,
+    "relative_error_1_1": 0.024219454232207244,
+    "relative_error_inf_inf": 0.024873048654387747,
+    "absolute_error_1_1": 0.15863742522095747,
+    "absolute_error_inf_inf": 0.19898438923510198,
+    "max_entrywise_error": 0.0994921946175511,
+    "max_error_off_support": 0.0,
+    "max_kernel_difference": {
+      "t=0.5": 0.0051630469567696124,
+      "t=1": 0.003583956274961525
+    }
+  },
+  "spectrum_of_estimate": {
+    "max_real_part": -2.792745308537256e-16,
+    "spectral_gap": 0.03816013590942409,
+    "most_negative_eigenvalue": -6.03025575330818,
+    "max_abs_imaginary_part": 0.0
+  },
+  "stability_bound": {
+    "delta": 0.0010000000000000195,
+    "K_norm_inf_inf_of_Q": 8.0,
+    "epsilon_norm_inf_inf_of_difference": 0.19898438923510198,
+    "bound_holds_with_K": true,
+    "bound_holds_with_R_Q": true,
+    "min_slack_positive_t": 0.011517574575290328,
+    "ratio_lhs_over_rhs_at_t_2": 2.4483670756152685e-08
+  },
+  "figures": [
+    "fig1_graph.png",
+    "fig1b_matrices.png",
+    "fig2_spectrum_D.png",
+    "fig3_endpoint_counts.png",
+    "fig4_operator_recovery.png",
+    "fig5_kernels.png",
+    "fig6_frame_diagnostics.png",
+    "fig7_regularizer_spectrum.png",
+    "fig8_stability.png"
+  ],
+  "environment": {
+    "python": "3.11.15",
+    "numpy": "2.4.4",
+    "scipy": "1.17.1",
+    "matplotlib": "3.10.9"
+  }
+}

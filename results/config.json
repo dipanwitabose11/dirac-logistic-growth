@@ -1,0 +1,35 @@
+{
+  "K": 6,
+  "n_states": 13,
+  "n_vertices": 7,
+  "n_edges": 6,
+  "incidence_support_size": 24,
+  "frame_elements": 182,
+  "theta_true": {
+    "r": 0.9,
+    "d": 0.25,
+    "a": 0.1,
+    "kappa_left": 2.0,
+    "kappa_right": 2.0
+  },
+  "times": [
+    0.5,
+    1.0
+  ],
+  "n_obs_per_time": 200000,
+  "n_obs_total": 400000,
+  "start_distribution_mode": "uniform_on_Gamma",
+  "likelihood_ratio_alpha": 0.05,
+  "random_seed": 123,
+  "estimator": "constrained minimisation of the Dirac frame regularizer R_Q",
+  "decision_variable": "off-diagonal rates on the incidence support",
+  "optimizer": {
+    "likelihood": "L-BFGS-B in log-rate coordinates, 4 starts",
+    "constrained": "SLSQP on the exact epigraph reformulation",
+    "starts": [
+      "maximum likelihood",
+      "unit rates",
+      "reference"
+    ]
+  }
+}
